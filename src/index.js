@@ -1,4 +1,3 @@
-```javascript
 export default {
   async fetch(request, env) {
     const url = "https://boosterpoint.pl/wszystkie-produkty/";
@@ -123,4 +122,3 @@ export default {
     }
   }
 };
-```
