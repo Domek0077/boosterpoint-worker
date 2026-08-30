@@ -2,9 +2,9 @@ export default {
   async fetch(request, env) {
     const url = "https://boosterpoint.pl/wszystkie-produkty/";
     const KV_KEY = "boosterpoint_products";
+    const CHAT_ID = "5958605903";
 
     try {
-      // Pobieramy stronę BoosterPoint
       const response = await fetch(url, {
         headers: {
           "User-Agent":
@@ -61,6 +61,7 @@ export default {
         if (!nameMatch || !linkMatch) continue;
 
         const name = clean(nameMatch[1]);
+
         const price = priceMatch
           ? clean(priceMatch[1])
           : "brak ceny";
@@ -80,18 +81,13 @@ export default {
         }
       }
 
-      // Pobieramy poprzedni zapis z KV
       const oldData = await env.PRODUCTS_KV.get(KV_KEY);
-
-      const oldProducts = oldData
-        ? JSON.parse(oldData)
-        : [];
+      const oldProducts = oldData ? JSON.parse(oldData) : [];
 
       const oldUrls = new Set(
         oldProducts.map((product) => product.url)
       );
 
-      // Szukamy nowych produktów
       const newProducts = products.filter(
         (product) => !oldUrls.has(product.url)
       );
@@ -102,6 +98,39 @@ export default {
         JSON.stringify(products)
       );
 
+      // Telegram
+      let telegramSent = 0;
+
+      if (newProducts.length > 0 && env.TELEGRAM_BOT_TOKEN) {
+        for (const product of newProducts) {
+          const message =
+            `🆕 <b>NOWY PRODUKT — BoosterPoint</b>\n\n` +
+            `🃏 ${product.name}\n` +
+            `💰 ${product.price}\n\n` +
+            `🔗 <a href="${product.url}">Otwórz produkt</a>`;
+
+          const telegramResponse = await fetch(
+            `https://api.telegram.org/bot${env.TELEGRAM_BOT_TOKEN}/sendMessage`,
+            {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json"
+              },
+              body: JSON.stringify({
+                chat_id: CHAT_ID,
+                text: message,
+                parse_mode: "HTML",
+                disable_web_page_preview: false
+              })
+            }
+          );
+
+          if (telegramResponse.ok) {
+            telegramSent++;
+          }
+        }
+      }
+
       return new Response(
         JSON.stringify(
           {
@@ -110,8 +139,8 @@ export default {
             products_found: products.length,
             previous_products: oldProducts.length,
             new_products: newProducts.length,
-            new_products_list: newProducts,
-            products
+            telegram_sent: telegramSent,
+            new_products_list: newProducts
           },
           null,
           2
