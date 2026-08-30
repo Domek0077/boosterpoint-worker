@@ -1,5 +1,57 @@
 export default {
   async fetch(request, env) {
+    const requestUrl = new URL(request.url);
+
+    // ===== TEST TELEGRAMA =====
+    if (requestUrl.searchParams.get("test") === "telegram") {
+      if (!env.TELEGRAM_BOT_TOKEN) {
+        return new Response(
+          "❌ Brak secretu TELEGRAM_BOT_TOKEN",
+          { status: 500 }
+        );
+      }
+
+      const message =
+        "🧪 <b>TEST Pokémon TCG Monitor</b>\n\n" +
+        "✅ Telegram działa!\n" +
+        "🔥 BoosterPoint Worker poprawnie wysyła wiadomości.";
+
+      const telegramResponse = await fetch(
+        `https://api.telegram.org/bot${env.TELEGRAM_BOT_TOKEN}/sendMessage`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            chat_id: "5958605903",
+            text: message,
+            parse_mode: "HTML"
+          })
+        }
+      );
+
+      const telegramData = await telegramResponse.json();
+
+      return new Response(
+        JSON.stringify(
+          {
+            telegram_http_status: telegramResponse.status,
+            telegram_response: telegramData
+          },
+          null,
+          2
+        ),
+        {
+          headers: {
+            "content-type": "application/json; charset=UTF-8"
+          }
+        }
+      );
+    }
+
+    // ===== NORMALNY MONITOR =====
+
     const url = "https://boosterpoint.pl/wszystkie-produkty/";
     const KV_KEY = "boosterpoint_products";
     const CHAT_ID = "5958605903";
@@ -61,10 +113,7 @@ export default {
         if (!nameMatch || !linkMatch) continue;
 
         const name = clean(nameMatch[1]);
-
-        const price = priceMatch
-          ? clean(priceMatch[1])
-          : "brak ceny";
+        const price = priceMatch ? clean(priceMatch[1]) : "brak ceny";
 
         let productUrl = linkMatch[1];
 
@@ -92,13 +141,11 @@ export default {
         (product) => !oldUrls.has(product.url)
       );
 
-      // Zapisujemy aktualny stan
       await env.PRODUCTS_KV.put(
         KV_KEY,
         JSON.stringify(products)
       );
 
-      // Telegram
       let telegramSent = 0;
 
       if (newProducts.length > 0 && env.TELEGRAM_BOT_TOKEN) {
