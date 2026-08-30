@@ -1,3 +1,7 @@
 name = "boosterpoint-worker"
 main = "src/index.js"
 compatibility_date = "2026-08-30"
+
+[[kv_namespaces]]
+binding = "PRODUCTS_KV"
+id = "d1b0de3c283d48d086e8507237408f5f"
